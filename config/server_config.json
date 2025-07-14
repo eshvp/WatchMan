@@ -1,0 +1,16 @@
+{
+  "host": "0.0.0.0",
+  "port": 5000,
+  "debug": true,
+  "secret_key": "watchman-secret-key-2025",
+  "encryption_password": "watchman2025",
+  "database_path": "data/watchman.db",
+  "max_clients": 100,
+  "heartbeat_interval": 30,
+  "allowed_origins": [
+    "*"
+  ],
+  "log_level": "INFO",
+  "backup_interval": 3600,
+  "cleanup_old_data_days": 30
+}

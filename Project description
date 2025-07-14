@@ -1,0 +1,23 @@
+Watchman
+
+The watchman program is a device overwatch system. It needs to:
+Report back the infected devices screens.
+Report back that devices metrics:
+CPU Type, utilization and hertz
+Memory size and utilization
+Uptime
+Wifi connection type
+IPv4
+IPv6
+SSID 
+Graphics card type
+Logs of when the device turned off and when it turned back on
+Persistence
+Ghost operations
+Autorun capabilities
+
+All of the above info needs to report back to a server
+Client installer needs to obfuscate the server IP it’s reporting back to.
+
+The metrics need to be in a box at the bottom of the screen. Left side is a panel for switching between devices I am watching.
+Remaining space needs to be the screen of the device I’m watching over.
